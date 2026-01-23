@@ -2,38 +2,65 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Morse Decoder & Trainer</title>
+    <title>Morse Pro - JP/EN with Charts</title>
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #f4f7f6; color: #333; padding: 20px; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        #display-bits { font-size: 1.5rem; color: #666; height: 1.5em; margin-bottom: 10px; letter-spacing: 3px; }
-        #decoded-text { font-size: 3rem; font-weight: bold; min-height: 1.2em; border-bottom: 2px solid #ddd; margin-bottom: 20px; word-wrap: break-word; }
-        .key-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; background: #eee; padding: 15px; border-radius: 8px; font-size: 0.9rem; }
-        kbd { background: #333; color: white; padding: 2px 6px; border-radius: 4px; }
-        .status { margin-top: 10px; font-size: 0.8rem; color: #888; }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #eceff1; color: #263238; padding: 20px; }
+        .container { max-width: 900px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        .settings-grid { display: grid; grid-template-columns: 1fr 1.5fr; gap: 15px; margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 10px; text-align: left; font-size: 0.85rem; }
+        .setting-group { display: flex; flex-direction: column; gap: 8px; }
+        .setting-row { display: flex; align-items: center; gap: 8px; }
+        input[type="range"] { flex-grow: 1; }
+        .val-display { font-weight: bold; color: #1976d2; width: 35px; }
+
+        .mode-selector { margin-bottom: 15px; padding: 10px; background: #e3f2fd; border-radius: 8px; font-weight: bold; }
+        
+        #display-bits { font-size: 1.2rem; color: #78909c; height: 1.5em; margin-bottom: 5px; letter-spacing: 5px; }
+        #decoded-text { font-size: 2.2rem; font-weight: bold; min-height: 1.8em; border: 2px solid #cfd8dc; border-radius: 8px; margin-bottom: 20px; padding: 15px; background: #fafafa; word-wrap: break-word; line-height: 1.2; }
+        
+        /* 符号表のスタイル */
+        .chart-container { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; text-align: left; }
+        .chart-title { font-weight: bold; color: #37474f; margin-bottom: 10px; border-left: 5px solid #1976d2; padding-left: 10px; }
+        .morse-table { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 5px; margin-bottom: 20px; }
+        .morse-item { border: 1px solid #ddd; padding: 5px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; transition: background 0.2s; background: #fff; }
+        .morse-item:hover { background: #e3f2fd; border-color: #1976d2; }
+        .morse-item b { font-size: 1rem; color: #1976d2; display: block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Morse Decoder</h1>
+    <h1>Morse Pro</h1>
+
+    <div class="mode-selector">
+        モード切替: 
+        <input type="radio" name="lang-mode" value="en" id="m-en" checked><label for="m-en"> 欧文 (A-Z/0-9)</label>
+        <input type="radio" name="lang-mode" value="jp" id="m-jp" style="margin-left:20px;"><label for="m-jp"> 和文 (カナ)</label>
+    </div>
+
+    <div class="settings-grid">
+        <div class="setting-group">
+            <label class="setting-row"><input type="checkbox" id="decode-toggle" checked> 翻訳表示ON</label>
+            <label class="setting-row"><input type="checkbox" id="paddle-reverse"> パドル反転 (左=長)</label>
+            <button onclick="document.getElementById('decoded-text').innerText=''">テキスト消去 (Enter)</button>
+        </div>
+        <div class="setting-group">
+            <div class="setting-row"><span>短点 (ms):</span><input type="range" id="param-unit" min="40" max="300" value="100"><span class="val-display" id="val-unit">100</span></div>
+            <div class="setting-row"><span>長点倍率:</span><input type="range" id="param-dah" min="2" max="4" step="0.5" value="3"><span class="val-display" id="val-dah">3</span></div>
+            <div class="setting-row"><span>文字間隔:</span><input type="range" id="param-wait" min="2" max="10" value="4"><span class="val-display" id="val-wait">4</span></div>
+        </div>
+    </div>
     
     <div id="display-bits"></div>
     <div id="decoded-text"></div>
 
-    <div class="key-guide">
-        <div>
-            <strong>手動入力 (翻訳対象):</strong><br>
-            • <kbd>Space</kbd> : ストレートキー<br>
-            • <kbd>←</kbd> / <kbd>→</kbd> : パドル (短点/長点)
-        </div>
-        <div>
-            <strong>自動再生:</strong><br>
-            • <kbd>A</kbd>-<kbd>Z</kbd> : 符号を鳴らす<br>
-            • <kbd>Enter</kbd> : 画面をクリア
-        </div>
+    <div class="chart-container">
+        <div class="chart-title">欧文・数字 符号表 (クリックで再生)</div>
+        <div id="en-table" class="morse-table"></div>
+
+        <div class="chart-title">和文 符号表 (クリックで再生)</div>
+        <div id="jp-table" class="morse-table"></div>
     </div>
-    <div class="status">※文字の区切りは「一拍置く」と判定されます</div>
 </div>
 
 <script>
@@ -41,24 +68,40 @@
     let oscillator = null;
     let gainNode = null;
 
-    // モールス符号逆引き表
-    const REVERSE_MORSE = {
-        '.-': 'A', '-...': 'B', '-.-.': 'C', '-..': 'D', '.': 'E', '..-.': 'F',
-        '--.': 'G', '....': 'H', '..': 'I', '.---': 'J', '-.-': 'K', '.-..': 'L',
-        '--': 'M', '-.': 'N', '---': 'O', '.--.': 'P', '--.-': 'Q', '.-.': 'R',
-        '...': 'S', '-': 'T', '..-': 'U', '...-': 'V', '.--': 'W', '-..-': 'X',
-        '-.--': 'Y', '--..': 'Z'
+    const EN_MAP = {
+        'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.','H':'....','I':'..','J':'.---','K':'-.-','L':'.-..','M':'--','N':'-.','O':'---','P':'.--.','Q':'--.-','R':'.-.','S':'...','T':'-','U':'..-','V':'...-','W':'.--','X':'-..-','Y':'-.--','Z':'--..',
+        '0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.'
     };
 
-    const UNIT = 120; // 基準となる短点の長さ(ms)
+    const JP_MAP = {
+        'ア':'--.--','イ':'.-','ウ':'---.-','エ':'-.---','オ':'.-...','カ':'.-.-','キ':'.-..','ク':'...-','ケ':'-.-..','コ':'----','サ':'-.-.','シ':'---.','ス':'---','セ':'.--.-','ソ':'-.-.-','タ':'-.','チ':'..-.','ツ':'...--','テ':'.-.--','ト':'..-','ナ':'--.','ニ':'-...-','ヌ':'....','ネ':'--.-','ノ':'--','ハ':'-...','ヒ':'--..-','フ':'--..','ヘ':'.','ホ':'-..','マ':'-..-','ミ':'..-..','ム':'-','メ':'..-.','モ':'-..-.','ヤ':'.--','ユ':'..---','ヨ':'--...','ラ':'...','リ':'--.-','ル':'-.--.','レ':'---','ロ':'.-.-','ワ':'-.-','ヰ':'.-..-','ヱ':'.--..','ヲ':'.---','ン':'.-.-.','゛':'..','゜':'..--.'
+    };
+
+    // 逆引き用
+    const REV_EN = Object.fromEntries(Object.entries(EN_MAP).map(([k, v]) => [v, k]));
+    const REV_JP = Object.fromEntries(Object.entries(JP_MAP).map(([k, v]) => [v, k]));
+
+    const getUnit = () => parseInt(document.getElementById('param-unit').value);
+    const getDahMultiplier = () => parseFloat(document.getElementById('param-dah').value);
+    const getWaitMultiplier = () => parseFloat(document.getElementById('param-wait').value);
+
     let startTime = 0;
-    let lastUpTime = Date.now();
-    let currentSymbols = ""; // 入力中の「.-」を保持
-    let isKeyDown = false;
+    let currentSymbols = "";
     let timerId = null;
 
-    const bitDisplay = document.getElementById('display-bits');
-    const textDisplay = document.getElementById('decoded-text');
+    // 符号表の生成
+    function createTable(id, map) {
+        const container = document.getElementById(id);
+        for (let key in map) {
+            const div = document.createElement('div');
+            div.className = 'morse-item';
+            div.innerHTML = `<b>${key}</b>${map[key]}`;
+            div.onclick = () => playMorsePattern(map[key]);
+            container.appendChild(div);
+        }
+    }
+    createTable('en-table', EN_MAP);
+    createTable('jp-table', JP_MAP);
 
     function startTone() {
         if (oscillator) return;
@@ -78,85 +121,63 @@
         oscillator = null;
     }
 
-    // 文字を確定させる処理
-    function finalizeCharacter() {
-        if (currentSymbols === "") return;
-        const char = REVERSE_MORSE[currentSymbols] || "?";
-        textDisplay.innerText += char;
-        currentSymbols = "";
-        bitDisplay.innerText = "";
+    async function playMorsePattern(pattern) {
+        for (let s of pattern) {
+            startTone();
+            await new Promise(r => setTimeout(r, s === '.' ? getUnit() : getUnit() * getDahMultiplier()));
+            stopTone();
+            await new Promise(r => setTimeout(r, getUnit()));
+        }
     }
 
-    // キーが押された時
-    window.addEventListener('keydown', (e) => {
-        if (e.repeat) return;
-        
-        // Enterでクリア
-        if (e.code === 'Enter') {
-            textDisplay.innerText = "";
+    function finalizeCharacter() {
+        if (currentSymbols === "" || !document.getElementById('decode-toggle').checked) {
             currentSymbols = "";
-            bitDisplay.innerText = "";
+            document.getElementById('display-bits').innerText = "";
             return;
         }
+        const mode = document.querySelector('input[name="lang-mode"]:checked').value;
+        const char = (mode === 'en' ? REV_EN[currentSymbols] : REV_JP[currentSymbols]) || "?";
+        document.getElementById('decoded-text').innerText += char;
+        currentSymbols = "";
+        document.getElementById('display-bits').innerText = "";
+    }
 
-        // 文字間隔の判定（最後に離してから一定時間経過していたら確定）
+    window.addEventListener('keydown', (e) => {
+        if (e.repeat) return;
+        if (e.code === 'Enter') { document.getElementById('decoded-text').innerText = ""; currentSymbols = ""; return; }
         clearTimeout(timerId);
-        
         if (e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
             e.preventDefault();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
             startTone();
             startTime = Date.now();
-            isKeyDown = true;
-        }
-
-        // パドル（矢印キー）の場合は即座に記号を追加
-        if (e.code === 'ArrowLeft') {
-            addSymbol(".");
-        } else if (e.code === 'ArrowRight') {
-            addSymbol("-");
+            if (e.code === 'ArrowLeft') addSymbol(document.getElementById('paddle-reverse').checked ? "-" : ".");
+            if (e.code === 'ArrowRight') addSymbol(document.getElementById('paddle-reverse').checked ? "." : "-");
         }
     });
 
-    // キーが離された時
     window.addEventListener('keyup', (e) => {
         if (e.code === 'Space') {
             stopTone();
-            const duration = Date.now() - startTime;
-            // 短点か長点か判定 (UNITの2倍を閾値にする)
-            addSymbol(duration < UNIT * 2 ? "." : "-");
-            isKeyDown = false;
+            const threshold = getUnit() * ((1 + getDahMultiplier()) / 2);
+            addSymbol((Date.now() - startTime) < threshold ? "." : "-");
         } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
             stopTone();
-            isKeyDown = false;
         }
-        
-        // 文字の区切り判定タイマー開始（UNITの3倍程度待つ）
-        lastUpTime = Date.now();
-        timerId = setTimeout(finalizeCharacter, UNIT * 3);
+        timerId = setTimeout(finalizeCharacter, getUnit() * getWaitMultiplier());
     });
 
     function addSymbol(s) {
         currentSymbols += s;
-        bitDisplay.innerText = currentSymbols;
+        document.getElementById('display-bits').innerText = currentSymbols;
     }
 
-    // A-Zキーの自動再生（翻訳テスト用）
-    window.addEventListener('keypress', async (e) => {
-        const key = e.key.toLowerCase();
-        const MORSE_MAP = { 'a': '.-', 'b': '-...', 'c': '-.-.', 'd': '-..', 'e': '.', 'f': '..-.', 'g': '--.', 'h': '....', 'i': '..', 'j': '.---', 'k': '-.-', 'l': '.-..', 'm': '--', 'n': '-.', 'o': '---', 'p': '.--.', 'q': '--.-', 'r': '.-.', 's': '...', 't': '-', 'u': '..-', 'v': '...-', 'w': '.--', 'x': '-..-', 'y': '-.--', 'z': '--..' };
-        
-        if (key in MORSE_MAP) {
-            const pattern = MORSE_MAP[key];
-            for (let char of pattern) {
-                startTone();
-                const d = char === '.' ? UNIT : UNIT * 3;
-                await new Promise(r => setTimeout(r, d));
-                stopTone();
-                await new Promise(r => setTimeout(r, UNIT));
-            }
-            // 自動再生分をテキストに反映
-            textDisplay.innerText += key.toUpperCase();
-        }
+    // A-Zキーボード直接再生
+    window.addEventListener('keypress', (e) => {
+        const char = e.key.toUpperCase();
+        const pattern = EN_MAP[char] || JP_MAP[char];
+        if (pattern) playMorsePattern(pattern);
     });
 </script>
 </body>
