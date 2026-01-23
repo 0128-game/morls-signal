@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Morse Decoder & Trainer</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; background: #f4f7f6; color: #333; padding: 20px; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        #display-bits { font-size: 1.5rem; color: #666; height: 1.5em; margin-bottom: 10px; letter-spacing: 3px; }
+        #decoded-text { font-size: 3rem; font-weight: bold; min-height: 1.2em; border-bottom: 2px solid #ddd; margin-bottom: 20px; word-wrap: break-word; }
+        .key-guide { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left; background: #eee; padding: 15px; border-radius: 8px; font-size: 0.9rem; }
+        kbd { background: #333; color: white; padding: 2px 6px; border-radius: 4px; }
+        .status { margin-top: 10px; font-size: 0.8rem; color: #888; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Morse Decoder</h1>
+    
+    <div id="display-bits"></div>
+    <div id="decoded-text"></div>
+
+    <div class="key-guide">
+        <div>
+            <strong>手動入力 (翻訳対象):</strong><br>
+            • <kbd>Space</kbd> : ストレートキー<br>
+            • <kbd>←</kbd> / <kbd>→</kbd> : パドル (短点/長点)
+        </div>
+        <div>
+            <strong>自動再生:</strong><br>
+            • <kbd>A</kbd>-<kbd>Z</kbd> : 符号を鳴らす<br>
+            • <kbd>Enter</kbd> : 画面をクリア
+        </div>
+    </div>
+    <div class="status">※文字の区切りは「一拍置く」と判定されます</div>
+</div>
+
+<script>
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let oscillator = null;
+    let gainNode = null;
+
+    // モールス符号逆引き表
+    const REVERSE_MORSE = {
+        '.-': 'A', '-...': 'B', '-.-.': 'C', '-..': 'D', '.': 'E', '..-.': 'F',
+        '--.': 'G', '....': 'H', '..': 'I', '.---': 'J', '-.-': 'K', '.-..': 'L',
+        '--': 'M', '-.': 'N', '---': 'O', '.--.': 'P', '--.-': 'Q', '.-.': 'R',
+        '...': 'S', '-': 'T', '..-': 'U', '...-': 'V', '.--': 'W', '-..-': 'X',
+        '-.--': 'Y', '--..': 'Z'
+    };
+
+    const UNIT = 120; // 基準となる短点の長さ(ms)
+    let startTime = 0;
+    let lastUpTime = Date.now();
+    let currentSymbols = ""; // 入力中の「.-」を保持
+    let isKeyDown = false;
+    let timerId = null;
+
+    const bitDisplay = document.getElementById('display-bits');
+    const textDisplay = document.getElementById('decoded-text');
+
+    function startTone() {
+        if (oscillator) return;
+        oscillator = audioCtx.createOscillator();
+        gainNode = audioCtx.createGain();
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(600, audioCtx.currentTime);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.start();
+    }
+
+    function stopTone() {
+        if (!oscillator) return;
+        oscillator.stop();
+        oscillator = null;
+    }
+
+    // 文字を確定させる処理
+    function finalizeCharacter() {
+        if (currentSymbols === "") return;
+        const char = REVERSE_MORSE[currentSymbols] || "?";
+        textDisplay.innerText += char;
+        currentSymbols = "";
+        bitDisplay.innerText = "";
+    }
+
+    // キーが押された時
+    window.addEventListener('keydown', (e) => {
+        if (e.repeat) return;
+        
+        // Enterでクリア
+        if (e.code === 'Enter') {
+            textDisplay.innerText = "";
+            currentSymbols = "";
+            bitDisplay.innerText = "";
+            return;
+        }
+
+        // 文字間隔の判定（最後に離してから一定時間経過していたら確定）
+        clearTimeout(timerId);
+        
+        if (e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+            e.preventDefault();
+            startTone();
+            startTime = Date.now();
+            isKeyDown = true;
+        }
+
+        // パドル（矢印キー）の場合は即座に記号を追加
+        if (e.code === 'ArrowLeft') {
+            addSymbol(".");
+        } else if (e.code === 'ArrowRight') {
+            addSymbol("-");
+        }
+    });
+
+    // キーが離された時
+    window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space') {
+            stopTone();
+            const duration = Date.now() - startTime;
+            // 短点か長点か判定 (UNITの2倍を閾値にする)
+            addSymbol(duration < UNIT * 2 ? "." : "-");
+            isKeyDown = false;
+        } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+            stopTone();
+            isKeyDown = false;
+        }
+        
+        // 文字の区切り判定タイマー開始（UNITの3倍程度待つ）
+        lastUpTime = Date.now();
+        timerId = setTimeout(finalizeCharacter, UNIT * 3);
+    });
+
+    function addSymbol(s) {
+        currentSymbols += s;
+        bitDisplay.innerText = currentSymbols;
+    }
+
+    // A-Zキーの自動再生（翻訳テスト用）
+    window.addEventListener('keypress', async (e) => {
+        const key = e.key.toLowerCase();
+        const MORSE_MAP = { 'a': '.-', 'b': '-...', 'c': '-.-.', 'd': '-..', 'e': '.', 'f': '..-.', 'g': '--.', 'h': '....', 'i': '..', 'j': '.---', 'k': '-.-', 'l': '.-..', 'm': '--', 'n': '-.', 'o': '---', 'p': '.--.', 'q': '--.-', 'r': '.-.', 's': '...', 't': '-', 'u': '..-', 'v': '...-', 'w': '.--', 'x': '-..-', 'y': '-.--', 'z': '--..' };
+        
+        if (key in MORSE_MAP) {
+            const pattern = MORSE_MAP[key];
+            for (let char of pattern) {
+                startTone();
+                const d = char === '.' ? UNIT : UNIT * 3;
+                await new Promise(r => setTimeout(r, d));
+                stopTone();
+                await new Promise(r => setTimeout(r, UNIT));
+            }
+            // 自動再生分をテキストに反映
+            textDisplay.innerText += key.toUpperCase();
+        }
+    });
+</script>
+</body>
+</html>
