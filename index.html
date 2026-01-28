@@ -2,84 +2,99 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Morse Pro - Word Drill & Record</title>
+    <title>Morse Pro Ultimate - Custom Enter Logic</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #eceff1; padding: 20px; }
-        .container { max-width: 950px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        body { font-family: 'Helvetica Neue', Arial, sans-serif; text-align: center; background: #eceff1; padding: 20px; color: #263238; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; padding: 25px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         
-        /* 録画・ドリルパネル */
-        .top-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        .panel-box { background: #f0f4f8; padding: 15px; border-radius: 10px; border: 2px solid #cfd8dc; }
-        .drill-box { background: #fff9c4; border-color: #fbc02d; }
-        
-        .btn { padding: 10px 15px; border-radius: 6px; border: none; font-weight: bold; cursor: pointer; margin: 2px; transition: 0.2s; }
-        .btn:active { transform: scale(0.95); }
-        .btn-rec { background: #d32f2f; color: white; }
-        .btn-drill { background: #f57f17; color: white; }
-        .btn-stop { background: #37474f; color: white; }
+        .top-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+        .panel { background: #f0f4f8; padding: 15px; border-radius: 10px; border: 1px solid #cfd8dc; text-align: left; }
+        .drill-active { background: #fff9c4; border-color: #fbc02d; }
 
-        /* 録画エリア */
-        #recording-area { background: #222; border-radius: 10px; padding: 25px; color: white; position: relative; border: 5px solid #333; }
-        #drill-display { font-size: 1.5rem; color: #fbc02d; margin-bottom: 5px; min-height: 1.6em; }
-        #drill-target { font-size: 3.5rem; font-weight: 900; color: #fff; background: #444; display: inline-block; padding: 5px 40px; border-radius: 10px; margin-bottom: 10px; letter-spacing: 5px; }
-        #display-bits { font-size: 5rem; font-weight: 900; height: 1.2em; display: flex; justify-content: center; align-items: center; }
+        #recording-area { background: #222; border-radius: 10px; padding: 30px; color: white; min-height: 250px; position: relative; border: 5px solid #333; }
+        #drill-ui { color: #fbc02d; font-weight: bold; margin-bottom: 10px; min-height: 1.2em; visibility: hidden; }
+        #drill-target { font-size: 3.5rem; color: #fff; background: #444; display: inline-block; padding: 5px 30px; border-radius: 8px; margin-bottom: 10px; }
+        #display-bits { font-size: 5.5rem; font-weight: 900; height: 1.2em; display: flex; justify-content: center; align-items: center; letter-spacing: 5px; }
+        #decoded-text { font-size: 2.5rem; font-weight: bold; min-height: 1.5em; border-top: 1px solid #444; margin-top: 15px; padding-top: 10px; word-wrap: break-word; }
+        
         .dot { color: #4fc3f7; }
         .dah { color: #ff5252; }
-        #decoded-text { font-size: 2.2rem; font-weight: bold; min-height: 1.2em; border-top: 1px solid #444; margin-top: 15px; padding-top: 10px; color: #fff; }
-        .correct-flash { animation: flash 0.5s ease-out; }
-        @keyframes flash { 0% { background-color: #4caf50; } 100% { background-color: #222; } }
+        .correct-flash { background-color: #2e7d32 !important; }
 
-        /* 設定エリア */
-        .settings { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; font-size: 0.85rem; background: #f8f9fa; padding: 15px; border-radius: 10px; margin-top: 20px; }
+        .btn { padding: 8px 15px; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; transition: 0.2s; font-size: 0.85rem; }
+        .btn-rec { background: #d32f2f; color: white; }
+        .btn-stop { background: #37474f; color: white; }
+        
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; text-align: left; background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px; font-size: 0.85rem; }
         .val-badge { background: #1976d2; color: white; padding: 2px 6px; border-radius: 4px; font-family: monospace; }
-        .ms-info { color: #d32f2f; font-weight: bold; }
+        .ms-info { color: #d32f2f; font-weight: bold; font-size: 0.8rem; }
         input[type="range"] { width: 100%; cursor: pointer; }
+
+        .chart-container { margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px; text-align: left; }
+        .morse-table { display: grid; grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)); gap: 8px; }
+        .morse-item { border: 1px solid #ddd; padding: 8px; border-radius: 5px; font-size: 0.7rem; background: #fff; cursor: pointer; text-align: center; }
+        .morse-item b { font-size: 1.1rem; color: #1976d2; display: block; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="top-panel">
-        <div class="panel-box">
-            <div style="font-weight:bold; margin-bottom:5px;">🎥 録画・録音設定</div>
-            <select id="rec-range" class="btn" style="background:#fff; color:#333; border:1px solid #ccc;">
-                <option value="both">全部録画</option>
-                <option value="bits">符号のみ</option>
-                <option value="text">翻訳のみ</option>
-            </select>
+    <h1>Morse Pro Ultimate</h1>
+
+    <div class="top-grid">
+        <div class="panel">
+            <div style="font-weight:bold; margin-bottom:10px;">🎥 録画・録音</div>
+            <div style="margin-bottom:10px;">
+                録画範囲: <select id="rec-range" class="btn" style="background:white; border:1px solid #ccc;">
+                    <option value="both">符号と翻訳</option>
+                    <option value="bits">符号のみ</option>
+                    <option value="text">翻訳のみ</option>
+                </select>
+            </div>
             <button id="audio-btn" class="btn" style="background:#4caf50; color:white;" onclick="startRec('audio')">音声(MP3)</button>
             <button id="video-btn" class="btn btn-rec" onclick="startRec('video')">動画(MP4)</button>
-            <button id="stop-btn" class="btn btn-stop" onclick="stopRec()" style="display:none;">停止・保存</button>
+            <button id="stop-btn" class="btn btn-stop" onclick="stopRec()" style="display:none;">保存して停止</button>
+            <span id="status-msg" style="font-weight:bold; margin-left:5px;"></span>
         </div>
-        <div class="panel-box drill-box">
-            <div style="font-weight:bold; margin-bottom:5px;">🎯 ドリルモード</div>
-            <button id="start-drill-btn" class="btn btn-drill" onclick="toggleDrill()">ドリル開始</button>
-            <div id="drill-stats" style="font-size:0.9rem; margin-top:5px; font-weight:bold;">正解数: 0</div>
+
+        <div id="drill-panel" class="panel">
+            <div style="font-weight:bold; margin-bottom:10px;">🎯 ドリルモード</div>
+            <button id="drill-btn" class="btn" style="background:#f57f17; color:white;" onclick="toggleDrill()">ドリル開始</button>
+            <span id="drill-stats" style="margin-left:10px; font-weight:bold;">正解: 0</span>
+            <div style="margin-top:10px; font-size:0.8rem; color:#d32f2f; font-weight:bold;">※[Enter]キーで文字を全消去します。</div>
         </div>
     </div>
 
     <div id="recording-area">
-        <div id="drill-display" style="visibility: hidden;">
-            TARGET WORD: <br>
-            <div id="drill-target">-</div>
-        </div>
+        <div id="drill-ui">TARGET WORD: <br><div id="drill-target">-</div></div>
         <div id="display-bits"></div>
         <div id="decoded-text"></div>
     </div>
 
-    <div class="settings">
-        <div>
+    <div class="settings-grid">
+        <div class="setting-col">
             <label>短点（基準）: <span class="val-badge" id="val-unit">100 ms</span></label>
             <input type="range" id="param-unit" min="50" max="400" value="100">
-            <label style="margin-top:10px; display:block;">長点倍率: <span class="val-badge" id="val-dah-mul">3.0倍</span> <span class="ms-info" id="val-dah-ms">→ 300ms</span></label>
+            <label style="display:block; margin-top:15px;">長点倍率: <span class="val-badge" id="val-dah-mul">3.0倍</span> <span class="ms-info" id="val-dah-ms">→ 300ms</span></label>
             <input type="range" id="param-dah" min="2" max="5" step="0.5" value="3">
+            <label style="display:block; margin-top:15px;">確定間隔: <span class="val-badge" id="val-wait-mul">4倍</span> <span class="ms-info" id="val-wait-ms">→ 400ms</span></label>
+            <input type="range" id="param-wait" min="2" max="10" step="1" value="4">
         </div>
-        <div>
-            <label>確定間隔: <span class="val-badge" id="val-wait-mul">4倍</span> <span class="ms-info" id="val-wait-ms">→ 400ms</span></label>
-            <input type="range" id="param-wait" min="2" max="8" step="1" value="4">
-            <label style="display:block; margin-top:10px;"><input type="checkbox" id="paddle-reverse"> パドル反転</label>
-            <button onclick="document.getElementById('decoded-text').innerText=''" style="width:100%; margin-top:5px; cursor:pointer;">テキスト消去</button>
+        <div class="setting-col">
+            <label style="font-weight:bold;"><input type="checkbox" id="decode-toggle" checked> 翻訳表示を有効にする</label><br>
+            <label style="font-weight:bold; display:block; margin-top:10px;"><input type="checkbox" id="paddle-reverse"> パドル反転 (左=長 / 右=短)</label>
+            <div style="margin-top:20px; padding:10px; background:#fff; border:1px dashed #ccc; font-size:0.75rem;">
+                ⌨️ <b>操作ルール</b><br>
+                ・<b>[Enter]</b>: 翻訳テキストをすべて消去<br>
+                ・<b>[A-Z / 0-9]</b>: 自動符号再生<br>
+                ・<b>[Space / 方向キー]</b>: モールス入力
+            </div>
         </div>
+    </div>
+
+    <div class="chart-container">
+        <h3>Alphabet Chart (Click to Play)</h3>
+        <div id="morse-table" class="morse-table"></div>
     </div>
 </div>
 
@@ -87,91 +102,13 @@
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const streamDest = audioCtx.createMediaStreamDestination();
     let oscillator, gainNode, mediaRecorder, recordedChunks = [];
-    let recType = '', isDrillMode = false, drillWord = '', correctCount = 0;
+    let recType = '', isDrill = false, drillWord = '', correctCount = 0;
+    let currentSymbols = "", timerId = null, startTime = 0, isAutoPlaying = false;
 
     const EN_MAP = {'A':'.-','B':'-...','C':'-.-.','D':'-..','E':'.','F':'..-.','G':'--.','H':'....','I':'..','J':'.---','K':'-.-','L':'.-..','M':'--','N':'-.','O':'---','P':'.--.','Q':'--.-','R':'.-.','S':'...','T':'-','U':'..-','V':'...-','W':'.--','X':'-..-','Y':'-.--','Z':'--..','0':'-----','1':'.----','2':'..---','3':'...--','4':'....-','5':'.....','6':'-....','7':'--...','8':'---..','9':'----.'};
     const REV_EN = Object.fromEntries(Object.entries(EN_MAP).map(([k, v]) => [v, k]));
-    
-    // 特定の単語リスト
-    const FIXED_WORDS = ["SOS", "CQ", "TEST", "QRZ", "HI", "73", "88", "RST", "OP"];
+    const DRILL_WORDS = ["SOS", "CQ", "TEST", "QRZ", "HI", "73", "88", "RST", "OP", "OK", "K"];
 
-    function toggleDrill() {
-        isDrillMode = !isDrillMode;
-        const btn = document.getElementById('start-drill-btn');
-        const display = document.getElementById('drill-display');
-        if (isDrillMode) {
-            btn.innerText = "ドリル終了";
-            display.style.visibility = "visible";
-            correctCount = 0;
-            document.getElementById('decoded-text').innerText = "";
-            nextDrill();
-        } else {
-            btn.innerText = "ドリル開始";
-            display.style.visibility = "hidden";
-            document.getElementById('drill-target').innerText = "-";
-        }
-    }
-
-    function nextDrill() {
-        // 50%の確率で固定単語、50%でランダム3文字
-        if (Math.random() > 0.5) {
-            drillWord = FIXED_WORDS[Math.floor(Math.random() * FIXED_WORDS.length)];
-        } else {
-            const keys = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-            drillWord = "";
-            for(let i=0; i<3; i++) drillWord += keys[Math.floor(Math.random()*keys.length)];
-        }
-        document.getElementById('drill-target').innerText = drillWord;
-        document.getElementById('drill-stats').innerText = `正解数: ${correctCount}`;
-        document.getElementById('decoded-text').innerText = "";
-    }
-
-    async function startRec(type) {
-        recType = type; recordedChunks = [];
-        const range = document.getElementById('rec-range').value;
-        document.getElementById('display-bits').style.display = (range === 'text') ? 'none' : 'flex';
-        document.getElementById('decoded-text').style.display = (range === 'bits') ? 'none' : 'block';
-
-        let stream = (type === 'video') ? 
-            new MediaStream([...document.getElementById('recording-area').captureStream(30).getTracks(), ...streamDest.stream.getTracks()]) : 
-            streamDest.stream;
-
-        mediaRecorder = new MediaRecorder(stream, { mimeType: type === 'video' ? 'video/webm;codecs=vp9' : 'audio/webm' });
-        mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
-        mediaRecorder.onstop = exportFile;
-        mediaRecorder.start();
-        uiState(true, type);
-    }
-
-    function stopRec() { mediaRecorder.stop(); uiState(false); }
-
-    function exportFile() {
-        const ext = recType === 'video' ? 'mp4' : 'mp3';
-        const blob = new Blob(recordedChunks, { type: `video/${ext}` });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = `morse_drill_${Date.now()}.${ext}`;
-        a.click();
-    }
-
-    function uiState(isRec, type) {
-        document.getElementById('audio-btn').style.display = isRec ? 'none' : 'inline-block';
-        document.getElementById('video-btn').style.display = isRec ? 'none' : 'inline-block';
-        document.getElementById('stop-btn').style.display = isRec ? 'inline-block' : 'none';
-    }
-
-    function updateUI() {
-        const u = parseInt(document.getElementById('param-unit').value);
-        const d = parseFloat(document.getElementById('param-dah').value);
-        const w = parseInt(document.getElementById('param-wait').value);
-        document.getElementById('val-unit').innerText = u + " ms";
-        document.getElementById('val-dah-mul').innerText = d.toFixed(1) + "倍";
-        document.getElementById('val-dah-ms').innerText = `→ ${Math.round(u*d)}ms`;
-        document.getElementById('val-wait-mul').innerText = w + "倍";
-        document.getElementById('val-wait-ms').innerText = `→ ${u*w}ms`;
-    }
-
-    let currentSymbols = "", timerId = null, startTime = 0;
     function startTone() {
         if (oscillator) return;
         oscillator = audioCtx.createOscillator();
@@ -185,36 +122,134 @@
     }
     function stopTone() { if (oscillator) { oscillator.stop(); oscillator = null; } }
 
+    function addSym(s) {
+        currentSymbols += s;
+        const container = document.getElementById('display-bits');
+        container.innerHTML = currentSymbols.split('').map(x => `<span class="${x==='.'?'dot':'dah'}">${x==='.'?'●':'━'}</span>`).join('');
+    }
+
+    function toggleDrill() {
+        isDrill = !isDrill;
+        const btn = document.getElementById('drill-btn');
+        const area = document.getElementById('drill-ui');
+        const panel = document.getElementById('drill-panel');
+        if (isDrill) {
+            btn.innerText = "終了";
+            area.style.visibility = "visible";
+            panel.classList.add('drill-active');
+            correctCount = 0;
+            nextDrill();
+        } else {
+            btn.innerText = "ドリル開始";
+            area.style.visibility = "hidden";
+            panel.classList.remove('drill-active');
+        }
+    }
+
+    function nextDrill() {
+        if (Math.random() > 0.4) {
+            drillWord = DRILL_WORDS[Math.floor(Math.random() * DRILL_WORDS.length)];
+        } else {
+            drillWord = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+        }
+        document.getElementById('drill-target').innerText = drillWord;
+        document.getElementById('drill-stats').innerText = `正解: ${correctCount}`;
+        document.getElementById('decoded-text').innerText = "";
+    }
+
+    async function playPattern(pattern, char) {
+        if (isAutoPlaying) return;
+        isAutoPlaying = true;
+        for (let s of pattern) {
+            addSym(s); startTone();
+            await new Promise(r => setTimeout(r, s==='.' ? getU() : getU()*getD()));
+            stopTone();
+            await new Promise(r => setTimeout(r, getU()));
+        }
+        if (document.getElementById('decode-toggle').checked) {
+            document.getElementById('decoded-text').innerText += char;
+            checkDrill();
+        }
+        setTimeout(() => {
+            currentSymbols = ""; document.getElementById('display-bits').innerHTML = "";
+            isAutoPlaying = false;
+        }, getU() * getW());
+    }
+
     function finalize() {
         if (!currentSymbols) return;
         const char = REV_EN[currentSymbols] || "?";
-        const deco = document.getElementById('decoded-text');
-        deco.innerText += char;
-        
-        if (isDrillMode) {
-            // 現在の入力がターゲット単語と一致しているかチェック
-            if (deco.innerText === drillWord) {
-                correctCount++;
-                const area = document.getElementById('recording-area');
-                area.classList.add('correct-flash');
-                setTimeout(() => area.classList.remove('correct-flash'), 500);
-                setTimeout(nextDrill, 600);
-            } else if (!drillWord.startsWith(deco.innerText)) {
-                // 間違えたら赤くしてリセット
-                deco.style.color = "#ff5252";
-                setTimeout(() => {
-                    deco.innerText = "";
-                    deco.style.color = "#fff";
-                }, 500);
-            }
+        if (document.getElementById('decode-toggle').checked) {
+            document.getElementById('decoded-text').innerText += char;
+            checkDrill();
         }
-        
-        currentSymbols = "";
-        document.getElementById('display-bits').innerHTML = "";
+        currentSymbols = ""; document.getElementById('display-bits').innerHTML = "";
     }
 
+    function checkDrill() {
+        if (!isDrill) return;
+        const text = document.getElementById('decoded-text').innerText.trim();
+        if (text === drillWord) {
+            correctCount++;
+            const area = document.getElementById('recording-area');
+            area.classList.add('correct-flash');
+            setTimeout(() => area.classList.remove('correct-flash'), 400);
+            setTimeout(nextDrill, 500);
+        } else if (!drillWord.startsWith(text)) {
+            // 単語の途中までが間違っていたら消去
+            document.getElementById('decoded-text').innerText = "";
+        }
+    }
+
+    async function startRec(type) {
+        recType = type; recordedChunks = [];
+        const range = document.getElementById('rec-range').value;
+        document.getElementById('display-bits').style.display = (range === 'text') ? 'none' : 'flex';
+        document.getElementById('decoded-text').style.display = (range === 'bits') ? 'none' : 'block';
+        
+        let stream = (type === 'video') ? 
+            new MediaStream([...document.getElementById('recording-area').captureStream(30).getTracks(), ...streamDest.stream.getTracks()]) : 
+            streamDest.stream;
+
+        mediaRecorder = new MediaRecorder(stream, { mimeType: type==='video' ? 'video/webm;codecs=vp9' : 'audio/webm' });
+        mediaRecorder.ondataavailable = e => recordedChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+            const ext = recType === 'video' ? 'mp4' : 'mp3';
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(new Blob(recordedChunks, { type: `video/${ext}` }));
+            a.download = `morse_rec_${Date.now()}.${ext}`;
+            a.click();
+        };
+        mediaRecorder.start();
+        document.getElementById('status-msg').innerText = "🔴 REC";
+        document.getElementById('stop-btn').style.display = 'inline-block';
+    }
+
+    function stopRec() {
+        mediaRecorder.stop();
+        document.getElementById('status-msg').innerText = "";
+        document.getElementById('stop-btn').style.display = 'none';
+        document.getElementById('display-bits').style.display = 'flex';
+        document.getElementById('decoded-text').style.display = 'block';
+    }
+
+    const getU = () => parseInt(document.getElementById('param-unit').value);
+    const getD = () => parseFloat(document.getElementById('param-dah').value);
+    const getW = () => parseInt(document.getElementById('param-wait').value);
+
     window.addEventListener('keydown', e => {
-        if (e.repeat) return;
+        if (e.repeat || isAutoPlaying) return;
+
+        // Enterキー: 全消去
+        if (e.code === 'Enter') {
+            e.preventDefault();
+            document.getElementById('decoded-text').innerText = "";
+            return;
+        }
+
+        const key = e.key.toUpperCase();
+        if (EN_MAP[key]) { playPattern(EN_MAP[key], key); return; }
+        
         clearTimeout(timerId);
         if (['Space', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
             e.preventDefault();
@@ -227,27 +262,31 @@
     });
 
     window.addEventListener('keyup', e => {
-        const u = parseInt(document.getElementById('param-unit').value);
+        if (isAutoPlaying) return;
         if (e.code === 'Space') {
             stopTone();
-            const d = parseFloat(document.getElementById('param-dah').value);
-            addSym((Date.now() - startTime) < (u * (1+d)/2) ? "." : "-");
+            addSym((Date.now() - startTime) < (getU()*(1+getD())/2) ? "." : "-");
         } else if (['ArrowLeft', 'ArrowRight'].includes(e.code)) stopTone();
-        timerId = setTimeout(finalize, u * parseInt(document.getElementById('param-wait').value));
+        timerId = setTimeout(finalize, getU() * getW());
     });
 
-    function addSym(s) {
-        currentSymbols += s;
-        const container = document.getElementById('display-bits');
-        container.innerHTML = '';
-        currentSymbols.split('').forEach(x => {
-            const span = document.createElement('span');
-            span.innerText = x === '.' ? '●' : '━';
-            span.className = x === '.' ? 'dot' : 'dah';
-            container.appendChild(span);
-        });
+    const table = document.getElementById('morse-table');
+    for (let k in EN_MAP) {
+        const div = document.createElement('div');
+        div.className = 'morse-item';
+        div.innerHTML = `<b>${k}</b>${EN_MAP[k]}`;
+        div.onclick = () => playPattern(EN_MAP[k], k);
+        table.appendChild(div);
     }
 
+    function updateUI() {
+        const u = getU(), d = getD(), w = getW();
+        document.getElementById('val-unit').innerText = u + " ms";
+        document.getElementById('val-dah-mul').innerText = d.toFixed(1) + "倍";
+        document.getElementById('val-dah-ms').innerText = `→ ${Math.round(u*d)}ms`;
+        document.getElementById('val-wait-mul').innerText = w + "倍";
+        document.getElementById('val-wait-ms').innerText = `→ ${u*w}ms`;
+    }
     document.querySelectorAll('input[type="range"]').forEach(i => i.addEventListener('input', updateUI));
     updateUI();
 </script>
